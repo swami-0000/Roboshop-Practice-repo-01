@@ -1,0 +1,82 @@
+- name: install shipping component
+  hosts: shipping
+  become: 'yes'
+  tasks:
+    - name: Install maven 
+      ansible.builtin.yum:
+        name: maven 
+        state: installed
+
+    - name: Check roboshop user exist or not
+      ansible.builtin.command: id roboshop
+      register: out
+      ignore_errors: true
+
+    - when: out.rc != 0
+      name: Create roboshop user
+      ansible.builtin.user:
+        name: roboshop
+
+    - name: Check /app directory
+      ansible.builtin.stat:
+        path: /app
+        register: directory
+
+    - name: print directory stat
+      ansible.builtin.debug:
+        msg: 'output: {{directory}}'
+
+    - when: directory stat.exists == False
+      name: create /app directory
+      ansible.builtin.file:
+        path: /app
+        state: directory
+
+    - name: Download shipping artifact
+      ansible.builtin.get_url:
+        url: https://roboshop-builds.s3.amazonaws.com/shipping.zip
+        dest: /tmp
+
+    - name: Extract shipping artifact
+      ansible.builtin.unarchive:
+        src: /tmp/shipping.zip
+        dest: /app
+        remote_src: 'yes'
+
+    - name: download the dependencies & build the application
+      ansible.builtin.shell: mvn clean package
+      args:
+        chdir: /app
+
+    - name: rename shipping.jar
+      ansible.builtin.shell: mv target/shipping-1.0.jar shipping.jar
+      args:
+        chdir: /app
+    
+    - name: Copy file shipping.service
+      ansible.builtin.copy:
+        src: shipping.service
+        dest: /etc/systemd/system/shipping.service
+
+    - name: daemon-reload
+      ansible.builtin.systemd:
+        daemon-reload: 'yes'
+
+    - name: Start and enable shipping service
+      ansible.builtin.systemd:
+        name: shipping
+        state: started
+        enabled: 'yes'
+    
+    - name: Install mysql  
+      ansible.builtin.yum:
+        name: mysql  
+        state: installed
+
+    - name: load shipping data
+      ansible.builtin.command: mongo --host MONGODB-SERVER-IPADDRESS < /app/schema/shipping.js
+
+    - name: restart shipping 
+      ansible.builtin.service:
+        name: shipping 
+        state: restarted
