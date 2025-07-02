@@ -1,5 +1,5 @@
-- name: install catalogue component
-  hosts: catalogue
+- name: install user component
+  hosts: user
   become: 'yes'
   tasks:
     - name: Setup NodeJS repos
@@ -35,14 +35,14 @@
         path: /app
         state: directory
 
-    - name: Download catalogue artifact
+    - name: Download user artifact
       ansible.builtin.get_url:
-        url: https://roboshop-builds.s3.amazonaws.com/catalogue.zip
+        url: https://roboshop-builds.s3.amazonaws.com/user.zip
         dest: /tmp
 
-    - name: Extract catalogue artifact
+    - name: Extract user artifact
       ansible.builtin.unarchive:
-        src: /tmp/catalogue.zip
+        src: /tmp/user.zip
         dest: /app
         remote_src: 'yes'
 
@@ -51,10 +51,10 @@
       args:
         chdir: /app
 
-    - name: Copy file catalogue.service
+    - name: Copy file user.service
       ansible.builtin.copy:
-        src: catalogue.service
-        dest: /etc/systemd/system/catalogue.service
+        src: user.service
+        dest: /etc/systemd/system/user.service
 
     - name: daemon-reload
       ansible.builtin.systemd:
@@ -70,11 +70,11 @@
         name: mongodb-org-shell
         state: installed
 
-    - name: load catalogue data
-      ansible.builtin.command: mongo --host MONGODB-SERVER-IPADDRESS < /app/schema/catalogue.js
+    - name: load user data
+      ansible.builtin.command: mongo --host MONGODB-SERVER-IPADDRESS < /app/schema/user.js
     
-    - name: Start and enable catalogue service
+    - name: Start and enable user service
       ansible.builtin.systemd:
-        name: catalogue
+        name: user
         state: started
         enabled: 'yes'
